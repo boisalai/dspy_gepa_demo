@@ -1,0 +1,25 @@
+# Dépendances Python pour DSPy + GEPA + Ollama
+# Installation : pip install -r requirements.txt
+
+# Framework principal
+dspy-ai>=2.5.0
+
+# GEPA est maintenant intégré dans dspy-ai
+# Pas besoin d'installation séparée
+
+# Dépendances optionnelles pour fonctionnalités avancées
+# (généralement déjà installées avec dspy-ai)
+
+# Pour les modèles locaux via Ollama
+requests>=2.31.0
+
+# Pour le traitement de données (optionnel)
+# pandas>=2.0.0
+# numpy>=1.24.0
+
+# Pour la visualisation (optionnel)
+# matplotlib>=3.7.0
+
+# Note : Ollama doit être installé séparément
+# macOS: brew install ollama
+# Linux: curl -fsSL https://ollama.com/install.sh | sh
