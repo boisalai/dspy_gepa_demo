@@ -1,502 +1,456 @@
-# DSPy and GEPA Tutorial: Automated IT Ticket Classification
+# Tutoriel DSPy et GEPA : Classification automatique de billets d'assistance informatique
 
-This tutorial demonstrates how to build and optimize an automated IT ticket classification system using DSPy (Declarative Self-improving Language Programs) and GEPA (Genetic-Pareto Algorithm) with local language models via Ollama.
+Ce tutoriel vous guide à travers **DSPy** (Declarative Self-improving Language Programs) et **GEPA** (Genetic-Pareto Algorithm), deux outils puissants pour développer des applications utilisant des modèles de langage.
 
-## Overview
+## Vue d'ensemble
 
-This project implements a complete workflow for:
-- Classifying IT support tickets by category (Hardware, Software, Network, Account)
-- Assigning priority levels (Low, Medium, High, Urgent, Critical)
-- Optimizing prompt performance automatically using GEPA
-- Switching between different language model providers
+DSPy est un cadre de développement qui permet de créer des programmes utilisant des modèles de langage de manière déclarative et maintenable. Plutôt que d'écrire des instructions manuellement, vous définissez ce que vous voulez accomplir, et DSPy optimise automatiquement les instructions et les exemples.
 
-All components can run entirely locally using open-source models through Ollama, requiring no API keys or external services.
+GEPA est l'optimiseur le plus sophistiqué de DSPy. Il utilise des algorithmes génétiques et la réflexion par modèle de langage pour trouver automatiquement les meilleures instructions possibles.
 
-## Prerequisites
+## Objectifs d'apprentissage
 
-- macOS, Linux, or Windows with WSL
-- Python 3.9 or higher
-- At least 8GB of RAM (16GB recommended for larger models)
-- Ollama installed and running
+À la fin de ce tutoriel, vous serez en mesure de :
 
-## Installation
+1. Définir des **signatures** DSPy pour déclarer vos tâches
+2. Créer et composer des **modules** DSPy
+3. Évaluer la performance avec des **métriques personnalisées**
+4. Optimiser automatiquement avec les **optimiseurs** (BootstrapFewShot, MIPRO, GEPA)
+5. Utiliser différents **modèles de langage** de manière interchangeable
+6. Implémenter des **motifs avancés** pour la production
 
-### Step 1: Install Ollama
+## Prérequis
 
-```bash
-# On macOS
-brew install ollama
+### Logiciels requis
 
-# Start Ollama service
-ollama serve
-```
+- **Python 3.9+**
+- **Ollama** (pour exécuter des modèles localement)
+- **uv** (gestionnaire de paquets Python recommandé)
 
-In a separate terminal, download a language model:
+### Installation
 
-```bash
-# Recommended: Llama 3.1 8B (4.7 GB)
-ollama pull llama3.1:8b
+1. **Installer Ollama**
 
-# Alternatives:
-ollama pull mistral:7b      # Faster, 4.1 GB
-ollama pull qwen2.5:7b      # Higher quality, 4.7 GB
-```
+   Visitez [ollama.ai](https://ollama.ai) et suivez les instructions pour votre système d'exploitation.
 
-### Step 2: Install Python Dependencies
+2. **Télécharger un modèle**
 
-```bash
-pip install dspy-ai
-```
+   ```bash
+   ollama pull llama3.1:8b
+   ```
 
-Note: GEPA is now integrated into DSPy 3.0+ and requires no separate installation.
+3. **Cloner ce dépôt**
 
-## Tutorial Structure
+   ```bash
+   git clone https://github.com/votre-utilisateur/dspy_gepa_demo.git
+   cd dspy_gepa_demo
+   ```
 
-This tutorial uses four main scripts, each building on previous concepts:
+4. **Installer les dépendances**
 
-1. **main_simple.py** - Introduction to DSPy fundamentals
-2. **main.py** - Advanced features with ChainOfThought
-3. **advanced_examples.py** - Multi-model workflows
-4. **gepa_guide.py** - Automatic prompt optimization
+   Avec uv (recommandé) :
+   ```bash
+   uv pip install dspy-ai
+   ```
 
-## Part 1: DSPy Fundamentals (main_simple.py)
+   Ou avec pip :
+   ```bash
+   pip install dspy-ai
+   ```
 
-### Concepts Covered
-
-- DSPy configuration with Ollama
-- Signature definitions (input/output specification)
-- Module creation and execution
-- Basic evaluation metrics
-
-### Running the Example
-
-```bash
-python main_simple.py
-```
-
-### What This Script Demonstrates
-
-1. **Configuration**: Connecting DSPy to a local Ollama instance
-2. **Signature**: Defining task inputs and outputs declaratively
-3. **Module**: Creating a reusable prediction component
-4. **Evaluation**: Measuring accuracy on validation data
-
-### Expected Output
-
-```
-Classification Results:
-  Category accuracy: 70-85%
-  Priority accuracy: 60-75%
-  Combined accuracy: 50-65%
-```
-
-### Key Code Patterns
-
-The script demonstrates the minimal DSPy workflow:
-
-```python
-# 1. Configure language model
-lm = dspy.LM(model='ollama_chat/llama3.1:8b',
-             api_base='http://localhost:11434')
-dspy.configure(lm=lm)
-
-# 2. Define signature
-class TicketClassifier(dspy.Signature):
-    """Classify an IT ticket by category and priority"""
-    ticket = dspy.InputField()
-    category = dspy.OutputField()
-    priority = dspy.OutputField()
-
-# 3. Create module
-classifier = dspy.Predict(TicketClassifier)
-
-# 4. Execute
-result = classifier(ticket="Printer not working")
-```
-
-## Part 2: Advanced Features (main.py)
-
-### Concepts Covered
-
-- ChainOfThought reasoning
-- Accessing intermediate reasoning steps
-- Improved accuracy through explicit reasoning
-
-### Running the Example
-
-```bash
-python main.py
-```
-
-### What ChainOfThought Adds
-
-ChainOfThought instructs the model to explain its reasoning before providing an answer, typically improving accuracy by 5-15%.
-
-### Key Differences from main_simple.py
-
-```python
-# Instead of:
-classifier = dspy.Predict(TicketClassifier)
-
-# Use:
-classifier = dspy.ChainOfThought(TicketClassifier)
-```
-
-The model now generates intermediate reasoning that can be inspected for debugging or explanation purposes.
-
-## Part 3: Multi-Model Workflows (advanced_examples.py)
-
-### Concepts Covered
-
-- Switching between different LLM providers
-- Comparing model performance
-- Multi-model architectures
-- Cost-performance tradeoffs
-
-### Running the Example
-
-```bash
-python advanced_examples.py
-```
-
-### Supported Providers
-
-The script demonstrates integration with:
-
-- **Ollama** (local, free): llama3.1, mistral, qwen2.5, and others
-- **OpenAI** (API, paid): gpt-4, gpt-4o-mini
-- **Anthropic** (API, paid): claude-3-5-sonnet, claude-3-haiku
-
-### Switching Models
-
-Changing models requires only modifying the LM configuration:
-
-```python
-# Local Ollama
-lm = dspy.LM('ollama_chat/llama3.1:8b',
-             api_base='http://localhost:11434')
-
-# OpenAI
-lm = dspy.LM('openai/gpt-4o-mini')
-
-# Anthropic
-lm = dspy.LM('anthropic/claude-3-5-sonnet-20241022')
-```
-
-All other code remains unchanged.
-
-### Benchmarking Multiple Models
-
-The script includes a benchmark function to compare models:
-
-```python
-models = [
-    {'type': 'ollama', 'name': 'llama3.1:8b'},
-    {'type': 'ollama', 'name': 'mistral:7b'},
-    {'type': 'ollama', 'name': 'qwen2.5:7b'},
-]
-benchmark_models(models)
-```
-
-Expected results show accuracy and execution time for each model, enabling data-driven model selection.
-
-## Part 4: Automatic Optimization with GEPA (gepa_guide.py)
-
-### Concepts Covered
-
-- Automatic prompt optimization
-- Genetic algorithm-based improvement
-- Reflection-based error analysis
-- Performance measurement
-
-### Running the Example
-
-```bash
-uv run gepa_guide.py
-```
-
-### What GEPA Does
-
-GEPA (Genetic-Pareto Algorithm) automatically improves prompt performance through:
-
-1. **Variation Generation**: Creating multiple prompt variants
-2. **Evaluation**: Testing each variant on training data
-3. **Reflection**: Using an LLM to analyze failures and suggest improvements
-4. **Iteration**: Repeating until convergence or budget exhaustion
-
-### Menu Options
-
-```
-1. Basic optimization (recommended)
-   - Quick optimization with auto='light'
-   - 5-10 minutes execution time
-   - Typical improvement: 10-20%
-
-2. Advanced optimization
-   - Deeper optimization with auto='medium'
-   - 10-20 minutes execution time
-   - Maximum performance gains
-
-3. Display optimization tips
-```
-
-### API Changes in DSPy 3.0+
-
-GEPA now requires a reflection language model:
-
-```python
-# Required reflection model configuration
-reflection_lm = dspy.LM(
-    model='ollama_chat/llama3.1:8b',
-    api_base='http://localhost:11434',
-    temperature=1.0,
-    max_tokens=8000
-)
-
-# GEPA optimizer configuration
-optimizer = GEPA(
-    metric=your_metric_function,
-    auto='light',  # or 'medium', 'heavy'
-    reflection_lm=reflection_lm  # Required
-)
-```
-
-### Metric Function Requirements
-
-Metrics must accept the updated signature:
-
-```python
-def metric(example, prediction, trace=None, pred_name=None, pred_trace=None):
-    """
-    Args:
-        example: Ground truth example
-        prediction: Model prediction
-        trace: Optional execution trace
-        pred_name: Optional predictor name (GEPA-specific)
-        pred_trace: Optional predictor trace (GEPA-specific)
-
-    Returns:
-        float: Score between 0.0 and 1.0
-    """
-    category_match = prediction.category == example.category
-    priority_match = prediction.priority == example.priority
-    return 1.0 if (category_match and priority_match) else 0.0
-```
-
-### Expected Results
-
-```
-Before optimization:  42.86%
-After optimization:   57.14%
-Improvement:         +33.3%
-```
-
-Actual improvements vary based on task complexity and data quality.
-
-## Diagnostics and Troubleshooting
-
-### GEPA Diagnostics
-
-If you encounter errors with GEPA:
-
-```bash
-uv run diagnose_gepa.py
-```
-
-This script:
-- Verifies DSPy installation and version
-- Detects GEPA API parameters
-- Tests different configurations
-- Provides specific recommendations
-
-### Common Issues
-
-**Issue**: `TypeError: GEPA.__init__() got an unexpected keyword argument 'breadth'`
-
-**Cause**: Using deprecated API parameters with DSPy 3.0+
-
-**Solution**: Update to use `auto` parameter instead of `breadth/depth`. See [GEPA_API_CHANGES.md](GEPA_API_CHANGES.md) for migration guide.
-
-## Project Structure
+## Structure du projet
 
 ```
 dspy_gepa_demo/
-├── main_simple.py          # Tutorial Part 1: DSPy basics
-├── main.py                 # Tutorial Part 2: ChainOfThought
-├── advanced_examples.py    # Tutorial Part 3: Multi-model workflows
-├── gepa_guide.py          # Tutorial Part 4: GEPA optimization
-├── diagnose_gepa.py       # GEPA diagnostics tool
-├── data.py                # Training and validation datasets
-├── GEPA_API_CHANGES.md    # GEPA API migration guide
-├── GEPA_SOLUTION.md       # GEPA troubleshooting guide
-└── README.md              # This file
+├── README.md                 # Ce fichier
+├── src/
+│   ├── config.py            # Configuration de DSPy et des modèles
+│   ├── data.py              # Données d'entraînement et de validation
+│   ├── signatures.py        # Définitions des signatures DSPy
+│   ├── modules.py           # Modules DSPy (Predict, ChainOfThought, etc.)
+│   ├── metrics.py           # Métriques d'évaluation
+│   ├── evaluation.py        # Fonctions d'évaluation
+│   ├── optimizers.py        # Optimiseurs (BootstrapFewShot, MIPRO)
+│   ├── gepa_utils.py        # Utilitaires GEPA
+│   ├── patterns.py          # Motifs avancés (validation, retry, etc.)
+│   ├── multi_model.py       # Configuration multi-modèles
+│   └── examples.py          # Exemples d'utilisation
+└── images/                   # Images pour la documentation
 ```
 
-## Adapting to Your Use Case
+## Concepts fondamentaux
 
-### Step 1: Prepare Your Data
+### 1. Signatures : Déclarer ce que vous voulez faire
 
-Edit `data.py`:
+Une **signature** définit le contrat d'entrée-sortie de votre tâche. C'est comme une interface qui décrit ce que votre programme doit accomplir, sans spécifier comment.
+
+**Exemple simple :**
 
 ```python
-trainset = [
-    {
-        "input_field": "Your input text 1",
-        "output_field": "Expected output 1"
-    },
-    # Minimum 15-20 examples recommended
-]
+import dspy
 
-valset = [
-    # 5-10 validation examples
-]
+class TicketClassifier(dspy.Signature):
+    """Classer un billet d'assistance informatique selon sa catégorie et sa priorité."""
+
+    ticket = dspy.InputField(desc="Description du billet d'assistance informatique")
+    category = dspy.OutputField(desc="Catégorie parmi: Hardware, Software, Network, etc.")
+    priority = dspy.OutputField(desc="Priorité parmi: Low, Medium, High, Urgent, Critical")
 ```
 
-### Step 2: Define Your Signature
+**Composants d'une signature :**
 
-In your script:
+- **Docstring** : Description de la tâche
+- **InputField** : Champs d'entrée avec descriptions
+- **OutputField** : Champs de sortie attendus
+
+### 2. Modules : Exécuter vos tâches
+
+Un **module** utilise une signature pour générer des prédictions. DSPy offre plusieurs types de modules :
+
+#### Predict (simple)
+
+Génération directe sans raisonnement explicite.
 
 ```python
-class YourSignature(dspy.Signature):
-    """Clear description of your task"""
-    input_field = dspy.InputField(desc="Input description")
-    output_field = dspy.OutputField(desc="Output description")
-```
+import dspy
 
-### Step 3: Implement Your Metric
-
-```python
-def your_metric(example, prediction, trace=None, pred_name=None, pred_trace=None):
-    # Your evaluation logic
-    return 1.0 if correct else 0.0
-```
-
-### Step 4: Run and Iterate
-
-```bash
-python main_simple.py  # Test basic functionality
-python gepa_guide.py   # Optimize performance
-```
-
-## Technical Details
-
-### DSPy Framework
-
-DSPy is a framework for algorithmically optimizing language model prompts and weights. Key features:
-
-- **Declarative programming**: Define what you want, not how to prompt
-- **Automatic optimization**: GEPA and other optimizers improve performance automatically
-- **Modular architecture**: Compose complex pipelines from simple components
-- **Provider abstraction**: Switch between LLM providers without code changes
-
-### GEPA Algorithm
-
-GEPA uses genetic algorithms and LLM reflection to optimize prompts:
-
-1. **Initial Population**: Generate prompt variants
-2. **Evaluation**: Measure performance on training data
-3. **Selection**: Keep high-performing variants (Pareto frontier)
-4. **Reflection**: Analyze errors with LLM feedback
-5. **Mutation**: Generate new variants based on feedback
-6. **Iteration**: Repeat until convergence
-
-GEPA typically requires 400-800 LLM calls, taking 5-20 minutes with Ollama.
-
-### Performance Benchmarks
-
-With Llama 3.1 8B on IT ticket classification:
-
-- **Baseline (Predict)**: ~45-55% combined accuracy
-- **ChainOfThought**: ~55-65% combined accuracy (+10%)
-- **GEPA optimized**: ~65-75% combined accuracy (+10-20%)
-
-Results vary significantly based on:
-- Task complexity
-- Training data quality and quantity
-- Model selection
-- Metric definition
-
-## Advanced Configurations
-
-### Custom GEPA Budget
-
-Control optimization depth:
-
-```python
-optimizer = GEPA(
-    metric=your_metric,
-    auto='light',           # Quick optimization
-    # or
-    max_full_evals=20,      # Precise control
-    reflection_lm=reflection_lm
-)
-```
-
-### Multi-Stage Pipelines
-
-Combine multiple modules:
-
-```python
-class Pipeline(dspy.Module):
+class SimpleClassifier(dspy.Module):
     def __init__(self):
-        self.categorize = dspy.ChainOfThought(CategorySignature)
-        self.prioritize = dspy.ChainOfThought(PrioritySignature)
+        super().__init__()
+        self.predictor = dspy.Predict(TicketClassifier)
 
     def forward(self, ticket):
-        category = self.categorize(ticket=ticket)
-        priority = self.prioritize(ticket=ticket, category=category.category)
-        return dspy.Prediction(category=category.category, priority=priority.priority)
+        return self.predictor(ticket=ticket)
 ```
 
-### Hybrid Model Architectures
+#### ChainOfThought (avec raisonnement)
 
-Use different models for different tasks:
+Le modèle raisonne avant de répondre, ce qui améliore la précision.
 
 ```python
-# Fast model for categorization
-fast_lm = dspy.LM('ollama_chat/mistral:7b')
+class ThinkingClassifier(dspy.Module):
+    def __init__(self):
+        super().__init__()
+        self.predictor = dspy.ChainOfThought(TicketClassifier)
 
-# Accurate model for priority
-accurate_lm = dspy.LM('ollama_chat/llama3.1:8b')
-
-# Configure separately in your pipeline
+    def forward(self, ticket):
+        return self.predictor(ticket=ticket)
 ```
 
-## Resources
+**Avantage :** Amélioration typique de 5 à 15 % de la précision.
 
-### Documentation
+#### Modules composés
+
+Vous pouvez composer plusieurs modules pour créer des architectures plus complexes.
+
+```python
+class SequentialClassifier(dspy.Module):
+    def __init__(self):
+        super().__init__()
+        self.category_predictor = dspy.ChainOfThought(CategoryClassifier)
+        self.priority_predictor = dspy.ChainOfThought(PriorityClassifier)
+
+    def forward(self, ticket):
+        # Étape 1 : Prédire la catégorie
+        category_result = self.category_predictor(ticket=ticket)
+
+        # Étape 2 : Prédire la priorité en utilisant la catégorie
+        priority_result = self.priority_predictor(
+            ticket=ticket,
+            category=category_result.category
+        )
+
+        return dspy.Prediction(
+            category=category_result.category,
+            priority=priority_result.priority
+        )
+```
+
+### 3. Métriques : Mesurer la performance
+
+Une **métrique** est une fonction qui évalue la qualité d'une prédiction. Elle retourne un score entre 0 et 1.
+
+**Exemple : Correspondance exacte**
+
+```python
+def exact_match_metric(example, prediction, trace=None, pred_name=None, pred_trace=None):
+    """
+    Retourne 1 si la catégorie ET la priorité sont correctes, 0 sinon.
+    """
+    category_match = prediction.category.strip().lower() == example['category'].strip().lower()
+    priority_match = prediction.priority.strip().lower() == example['priority'].strip().lower()
+
+    return 1.0 if (category_match and priority_match) else 0.0
+```
+
+### 4. Optimiseurs : Améliorer automatiquement
+
+Les **optimiseurs** améliorent vos modules en optimisant les instructions et en générant des exemples de démonstration.
+
+#### BootstrapFewShot
+
+L'optimiseur le plus simple. Il génère des exemples de démonstration en exécutant votre module sur les données d'entraînement et en gardant les prédictions correctes.
+
+**Amélioration typique :** 5 à 15 %
+
+#### MIPRO
+
+Optimise à la fois les instructions et les exemples en générant plusieurs variantes et en testant différentes combinaisons.
+
+**Amélioration typique :** 10 à 25 %
+
+#### GEPA (Genetic-Pareto Algorithm)
+
+L'optimiseur le plus sophistiqué. Il combine :
+- **Algorithmes génétiques** : Évolution de populations d'instructions
+- **Réflexion par modèle de langage** : Analyse des erreurs et propositions d'améliorations
+- **Optimisation Pareto** : Équilibre de multiples objectifs
+
+**Amélioration typique :** 15 à 30 %
+
+**Niveaux d'optimisation :**
+
+| Niveau   | Durée      | Appels LLM | Amélioration | Utilisation             |
+|----------|------------|------------|--------------|-------------------------|
+| `light`  | 5-10 min   | ~200-400   | 10-20%       | Tests, prototypage      |
+| `medium` | 10-20 min  | ~400-800   | 15-25%       | Production légère       |
+| `heavy`  | 20-40 min  | ~800-1600  | 20-30%       | Performance maximale    |
+
+## Comment GEPA fonctionne
+
+GEPA utilise une approche inspirée de l'évolution biologique :
+
+1. **Population initiale** : Génère plusieurs variantes d'instructions
+2. **Évaluation** : Teste chaque variante sur les données d'entraînement
+3. **Sélection** : Garde les meilleures (front de Pareto)
+4. **Réflexion** : Un modèle de langage analyse les erreurs et propose des améliorations
+5. **Mutation** : Génère de nouvelles variantes basées sur la réflexion
+6. **Répétition** : Continue jusqu'à convergence
+
+**Avantages de GEPA :**
+- Trouve des instructions que les humains n'auraient pas imaginées
+- Apprend de ses erreurs de manière itérative
+- Équilibre plusieurs objectifs (précision, concision, etc.)
+
+**Quand utiliser GEPA :**
+- Vous visez la meilleure performance possible
+- Vous avez suffisamment de données (20+ exemples)
+- Vous avez du temps pour l'optimisation (10-30 minutes)
+- La tâche est critique pour votre application
+
+## Guide d'utilisation rapide
+
+### Exemple 1 : Utilisation de base
+
+```python
+# 1. Configurer DSPy avec Ollama
+from src.config import configure_ollama
+
+lm = configure_ollama()
+
+# 2. Créer un module
+from src.modules import SimpleTicketClassifier
+
+classifier = SimpleTicketClassifier()
+
+# 3. Faire des prédictions
+ticket = "Mon ordinateur ne démarre plus, j'ai une présentation dans 1 heure"
+result = classifier(ticket=ticket)
+
+print(f"Catégorie : {result.category}")
+print(f"Priorité : {result.priority}")
+```
+
+### Exemple 2 : Évaluation
+
+```python
+from src.evaluation import evaluate_module
+from src.metrics import exact_match_metric
+from src.data import get_val_examples
+
+# Évaluer sur l'ensemble de validation
+val_examples = get_val_examples()
+score = evaluate_module(classifier, val_examples, exact_match_metric)
+
+print(f"Score : {score:.2%}")
+```
+
+### Exemple 3 : Optimisation avec BootstrapFewShot
+
+```python
+from src.optimizers import optimize_with_bootstrap
+from src.data import get_train_examples
+
+# Données d'entraînement
+train_examples = get_train_examples()
+
+# Optimiser
+optimized = optimize_with_bootstrap(
+    classifier,
+    train_examples,
+    exact_match_metric,
+    max_bootstrapped_demos=4
+)
+
+# Évaluer l'amélioration
+score_optimized = evaluate_module(optimized, val_examples, exact_match_metric)
+print(f"Score optimisé : {score_optimized:.2%}")
+```
+
+### Exemple 4 : Optimisation avec GEPA
+
+```python
+from src.gepa_utils import optimize_with_gepa
+from src.config import configure_reflection_lm
+
+# Configurer le modèle de réflexion
+reflection_lm = configure_reflection_lm()
+
+# Optimiser avec GEPA (mode léger pour débuter)
+gepa_optimized = optimize_with_gepa(
+    classifier,
+    train_examples,
+    val_examples,
+    exact_match_metric,
+    reflection_lm,
+    auto='light'
+)
+
+# Évaluer
+score_gepa = evaluate_module(gepa_optimized, val_examples, exact_match_metric)
+print(f"Score GEPA : {score_gepa:.2%}")
+```
+
+### Exemple 5 : Exécuter tous les exemples
+
+```bash
+# Exemple de base
+python src/examples.py 1
+
+# Évaluation
+python src/examples.py 2
+
+# Optimisation
+python src/examples.py 3
+
+# GEPA
+python src/examples.py 4
+
+# Comparaison de modules
+python src/examples.py 5
+
+# Tous les exemples
+python src/examples.py all
+```
+
+## Meilleures pratiques
+
+### Données
+
+- **Minimum 20-30 exemples** pour l'entraînement
+- **Exemples diversifiés** couvrant tous les cas d'usage
+- **Ensemble de validation séparé** (15-20 % des données)
+- **Étiquettes cohérentes** et vérifiées
+
+### Métriques
+
+- **Commencer simple** : exact_match pour débuter
+- **Ajouter des nuances** : partial_match pour plus de signal
+- **Tester sur des cas limites** : exemples ambigus, courts, longs
+- **Documenter clairement** : expliquer ce que signifie chaque score
+
+### Optimisation
+
+- **Phase 1** : Module de base sans optimisation
+- **Phase 2** : BootstrapFewShot pour amélioration rapide
+- **Phase 3** : MIPRO si les résultats sont prometteurs
+- **Phase 4** : GEPA pour performance maximale
+
+### Production
+
+- **Toujours valider** les sorties
+- **Implémenter un réessai** pour les APIs
+- **Avoir un plan B** (modèle de secours)
+- **Surveiller la performance** en continu
+- **Collecter les erreurs** pour amélioration continue
+
+## Dépannage
+
+### Ollama ne démarre pas
+
+```bash
+# Vérifier qu'Ollama est installé
+ollama --version
+
+# Démarrer Ollama
+ollama serve
+
+# Vérifier les modèles disponibles
+ollama list
+```
+
+### Le modèle n'est pas trouvé
+
+```bash
+# Télécharger le modèle
+ollama pull llama3.1:8b
+```
+
+### Erreur de mémoire insuffisante
+
+- Utiliser un modèle plus petit : `mistral:7b`
+- Réduire `max_tokens` du reflection_lm
+- Utiliser `auto='light'` au lieu de `medium` ou `heavy`
+- Fermer les autres applications
+
+### GEPA ne s'améliore pas
+
+- Vérifier la qualité des données (minimum 20 exemples)
+- Vérifier que la métrique est bien définie
+- Essayer un niveau plus élevé (`medium` ou `heavy`)
+- Augmenter le nombre d'exemples d'entraînement
+
+## Ressources
+
+### Documentation officielle
+
 - [DSPy Documentation](https://dspy-docs.vercel.app/)
-- [Ollama Documentation](https://ollama.ai/docs)
-- [GEPA Paper (arXiv)](https://arxiv.org/abs/2507.19457)
+- [DSPy GitHub](https://github.com/stanfordnlp/dspy)
+- [Article DSPy](https://arxiv.org/abs/2310.03714)
 
-### Model Libraries
-- [Ollama Model Library](https://ollama.ai/library)
-- [Hugging Face Model Hub](https://huggingface.co/models)
+### GEPA
 
-### Related Projects
-- [DSPy GitHub Repository](https://github.com/stanfordnlp/dspy)
-- [GEPA GitHub Repository](https://github.com/gepa-ai/gepa)
+- [Article GEPA](https://arxiv.org/abs/2507.19457)
+- [GEPA GitHub](https://github.com/gepa-ai/gepa)
 
-## License and Usage
+### Ollama
 
-All components are open source and commercially usable:
+- [Documentation Ollama](https://ollama.ai/docs)
+- [Bibliothèque de modèles Ollama](https://ollama.ai/library)
 
-- DSPy: MIT License
-- GEPA: Apache 2.0 License
-- Ollama: MIT License
-- Llama 3.1: Meta Community License
-- Mistral: Apache 2.0 License
+### Communauté
 
-This tutorial code is provided as-is for educational and commercial use.
+- [Discord DSPy](https://discord.gg/dspy)
+- [Discord Ollama](https://discord.gg/ollama)
 
-## Next Steps
+## Contribution
 
-After completing this tutorial:
+Les contributions sont les bienvenues ! N'hésitez pas à :
+- Signaler des bogues
+- Proposer des améliorations
+- Ajouter des exemples
+- Améliorer la documentation
 
-1. Experiment with different models to find optimal cost-performance tradeoffs
-2. Apply GEPA to your own tasks and datasets
-3. Explore DSPy's other optimizers (BootstrapFewShot, MIPRO, etc.)
-4. Build production pipelines with multi-model architectures
-5. Contribute improvements back to the DSPy community
+## Licence
 
-For questions or issues, consult the DSPy documentation or GEPA troubleshooting guide included in this repository.
+Ce projet est distribué sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+
+## Remerciements
+
+- L'équipe DSPy de Stanford pour ce cadre de développement remarquable
+- Les créateurs de GEPA pour cet optimiseur sophistiqué
+- La communauté Ollama pour les modèles locaux accessibles
+
+---
+
+**Bon développement avec DSPy et GEPA !**
