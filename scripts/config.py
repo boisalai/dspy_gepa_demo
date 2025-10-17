@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore')
 def configure_ollama(
     model: str = 'ollama_chat/llama3.1:8b',
     api_base: str = 'http://localhost:11434',
-    temperature: float = 0.3
+    temperature: float = 0.0
 ) -> dspy.LM:
     """
     Configure DSPy to use Ollama with a specified model.
@@ -26,7 +26,8 @@ def configure_ollama(
     Args:
         model: The Ollama model to use (e.g., 'ollama_chat/llama3.1:8b')
         api_base: The base URL for the Ollama API
-        temperature: Temperature for generation (0.0-2.0, lower is more deterministic)
+        temperature: Temperature for generation (0.0=deterministic, higher=more creative)
+                    For classification tasks, use 0.0 for consistent results.
 
     Returns:
         dspy.LM: Configured language model

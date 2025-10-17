@@ -78,6 +78,67 @@ dspy_gepa_demo/
 └── images/                   # Images pour la documentation
 ```
 
+## Préparation des données
+
+POur ce tutoriel, nous travaillons avec des tickets IT en français. Chaque ticket contient :
+
+- Une **description** du problème
+- Une **catégorie** (Hardware, Software, Network, etc.)
+- Une **priorité** (Low, Medium, High, Urgent, Critical)
+
+```python
+# Categories of IT tickets
+CATEGORIES = [
+    "Hardware",
+    "Software",
+    "Network",
+    "Application",
+    "Infrastructure",
+    "Account",
+    "Email",
+    "Peripherals"
+]
+
+# Priority levels
+PRIORITIES = [
+    "Low",
+    "Medium",
+    "High",
+    "Urgent",
+    "Critical"
+]
+
+# Training dataset
+trainset = [
+    {"ticket": "Mon ordinateur ne démarre plus depuis ce matin. J'ai une présentation importante dans 2 heures.", "category": "Hardware", "priority": "Urgent"},
+    {"ticket": "Je n'arrive pas à me connecter à l'imprimante du 3e étage. Ça peut attendre.", "category": "Peripherals", "priority": "Low"},
+    {"ticket": "Le VPN ne fonctionne plus. Impossible d'accéder aux fichiers du serveur.", "category": "Network", "priority": "High"},
+    {"ticket": "J'ai oublié mon mot de passe Outlook. Je peux utiliser le webmail.", "category": "Account", "priority": "Medium"},
+    {"ticket": "Le site web affiche une erreur 500. Les clients ne peuvent plus commander!", "category": "Application", "priority": "Critical"},
+    {"ticket": "Ma souris sans fil ne répond plus bien. Les piles sont faibles.", "category": "Peripherals", "priority": "Low"},
+    {"ticket": "Le système de paie ne calcule pas les heures supplémentaires. C'est la fin du mois.", "category": "Application", "priority": "Urgent"},
+    {"ticket": "J'aimerais une mise à jour de mon logiciel Adobe quand vous aurez le temps.", "category": "Software", "priority": "Low"},
+    {"ticket": "Le serveur de base de données est très lent. Toute la production est impactée.", "category": "Infrastructure", "priority": "Critical"},
+    {"ticket": "Je ne reçois plus les emails. J'attends des réponses de fournisseurs.", "category": "Email", "priority": "High"},
+    {"ticket": "Mon écran externe ne s'affiche plus. Je peux travailler sur le laptop.", "category": "Hardware", "priority": "Medium"},
+    {"ticket": "Le wifi de la salle A ne fonctionne pas. Réunion avec des externes dans 30 min.", "category": "Network", "priority": "Urgent"},
+    {"ticket": "Je voudrais installer Slack pour mieux collaborer avec l'équipe.", "category": "Software", "priority": "Medium"},
+    {"ticket": "Le système de sauvegarde a échoué cette nuit selon le rapport.", "category": "Infrastructure", "priority": "High"},
+    {"ticket": "Mon clavier a une touche qui colle. C'est gérable mais ennuyeux.", "category": "Peripherals", "priority": "Low"}
+]
+
+# Validation dataset
+valset = [
+    {"ticket": "Le serveur de fichiers est inaccessible. Personne ne peut travailler.", "category": "Infrastructure", "priority": "Critical"},
+    {"ticket": "J'ai besoin d'accès au dossier comptabilité pour l'audit. C'est urgent.", "category": "Account", "priority": "Urgent"},
+    {"ticket": "L'écran de mon collègue en vacances clignote. On peut attendre.", "category": "Hardware", "priority": "Low"},
+    {"ticket": "Le CRM plante quand j'essaie d'exporter les contacts.", "category": "Application", "priority": "High"},
+    {"ticket": "Je voudrais changer ma photo de profil quand vous aurez un moment.", "category": "Account", "priority": "Low"},
+    {"ticket": "La vidéoconférence ne fonctionne pas. Réunion avec New York dans 10 minutes!", "category": "Application", "priority": "Critical"},
+    {"ticket": "Mon antivirus affiche un message d'expiration mais tout fonctionne.", "category": "Software", "priority": "Medium"}
+]
+```
+
 ## Concepts fondamentaux
 
 ### 1. Les signatures DSPy
@@ -149,32 +210,75 @@ class TicketClassifier(dspy.Signature):
 - **Contraintes claires** : Listez les valeurs possibles quand applicable
 - **Commencer simple** : Ajoutez des champs progressivement
 
+#### 🎯 Signature pour notre tutoriel
 
-### 2. Modules : Exécuter vos tâches
+Nous utiliserons cette signature pour le reste du tutoriel :
 
-## Qu'est-ce qu'un module ?
+```python
+class TicketClassifier(dspy.Signature):
+    """Classifier un ticket de support IT selon sa catégorie et sa priorité."""
+    
+    ticket = dspy.InputField(desc="Description du ticket de support IT")
+    category = dspy.OutputField(desc=f"Catégorie parmi: {', '.join(CATEGORIES)}")
+    priority = dspy.OutputField(desc=f"Priorité parmi: {', '.join(PRIORITIES)}")
+```
+
+### 2. Les modules DSPy
+
+#### Qu'est-ce qu'un module ?
 
 Un **module** dans DSPy est un composant qui **utilise une signature** pour générer des prédictions.
 
-**Analogie :**
+**Analogie**&nbsp;:
 - **Signature** = Le contrat ("je te donne X, tu me donnes Y")
 - **Module** = L'employé qui exécute le contrat (avec sa propre méthode de travail)
 
 DSPy offre plusieurs types de modules, chacun avec une stratégie différente :
 
+- **Predict** : Génération directe (le plus simple)
+- **ChainOfThought** : Raisonnement avant de répondre
+- **ReAct** : Raisonnement avec actions possibles
+- **ProgramOfThought** : Génération de code pour raisonner
+- **Modules personnalisés** : Composition de plusieurs modules
+
 #### Module 1 : Predict (le plus simple)
 
 **Predict** est le module de base : il génère directement une réponse.
 
-**Fonctionnement :**
+**Fonctionnement**&nbsp;:
 1. Reçoit les entrées
 2. Génère immédiatement les sorties
 3. Retourne le résultat
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Tâches simples
 - Besoin de rapidité
 - Première version d'un système
+
+```python
+# Créer un module Predict avec notre signature
+predict_classifier = dspy.Predict(TicketClassifier)
+
+# Tester sur un exemple
+test_ticket = "Mon ordinateur ne démarre plus. J'ai une présentation dans 1 heure."
+result = predict_classifier(ticket=test_ticket)
+
+print("🔮 Module : Predict")
+print(f"📝 Ticket : {test_ticket}")
+print(f"📦 Catégorie prédite : {result.category}")
+print(f"⚡ Priorité prédite : {result.priority}")
+```
+
+Ce code produira une sortie comme :
+
+```txt
+🔮 Module : Predict
+📝 Ticket : Mon ordinateur ne démarre plus. J'ai une présentation dans 1 heure.
+📦 Catégorie prédite : Hardware
+⚡ Priorité prédite : Urgent
+```
+
+Nous pouvons aussi encapsuler cela dans une classe :
 
 ```python
 import dspy
@@ -192,25 +296,62 @@ class SimpleClassifier(dspy.Module):
 
 **ChainOfThought** demande au modèle de raisonner avant de répondre.
 
-**Fonctionnement :**
+**Fonctionnement**&nbsp;:
 1. Reçoit les entrées
 2. **Génère d'abord un raisonnement**
 3. Génère ensuite les sorties basées sur ce raisonnement
 4. Retourne le résultat (avec le raisonnement)
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Tâches complexes nécessitant de la réflexion
 - Besoin d'expliquer les décisions
 - Améliorer la précision (+5-15% typiquement)
 
-**Avantages :**
+**Avantages**&nbsp;:
 - ✅ Meilleure précision
 - ✅ Raisonnement explicite et auditable
 - ✅ Meilleure gestion des cas limites
 
-**Inconvénients :**
+**Inconvénients**&nbsp;:
 - ❌ Plus lent (génère plus de tokens)
 - ❌ Plus coûteux en appels LLM
+
+```python
+# Créer un module ChainOfThought avec notre signature
+cot_classifier = dspy.ChainOfThought(TicketClassifier)
+
+# Tester sur le même exemple
+result = cot_classifier(ticket=test_ticket)
+
+print("🧠 Module : ChainOfThought")
+print(f"📝 Ticket : {test_ticket}")
+print(f"💭 Raisonnement : {getattr(result, 'rationale', 'non disponible')}")
+print(f"📦 Catégorie prédite : {result.category}")
+print(f"⚡ Priorité prédite : {result.priority}")
+```
+
+Ce code produira une sortie comme :
+
+```txt
+🧠 Module : ChainOfThought
+📝 Ticket : Mon ordinateur ne démarre plus. J'ai une présentation dans 1 heure.
+💭 Raisonnement : non disponible
+📦 Catégorie prédite : Hardware
+⚡ Priorité prédite : High
+```
+
+**Exemple de sortie avec raisonnement**&nbsp;:
+
+```
+Raisonnement: "L'utilisateur mentionne que son ordinateur ne démarre plus.
+Il s'agit clairement d'un problème matériel. De plus, il a une présentation
+dans 1 heure, ce qui rend le problème urgent."
+
+Catégorie: Hardware
+Priorité: Urgent
+```
+
+Nous pouvons aussi encapsuler cela dans une classe :
 
 ```python
 class ThinkingClassifier(dspy.Module):
@@ -222,50 +363,96 @@ class ThinkingClassifier(dspy.Module):
         return self.predictor(ticket=ticket)
 ```
 
-**Exemple de sortie avec raisonnement :**
-```
-Raisonnement: "L'utilisateur mentionne que son ordinateur ne démarre plus.
-Il s'agit clairement d'un problème matériel. De plus, il a une présentation
-dans 1 heure, ce qui rend le problème urgent."
+##### Comparaison Predict vs ChainOfThought
 
-Catégorie: Hardware
-Priorité: Urgent
+Testons les deux modules sur plusieurs exemples pour voir la différence.
+
+```python
+# Tester sur 3 exemples
+test_cases = valset[:3]
+
+print("="*70)
+print("Comparaison Predict vs ChainOfThought")
+print("="*70 + "\n")
+
+for i, example in enumerate(test_cases, 1):
+    print(f"--- Exemple {i} ---")
+    print(f"Ticket : {example['ticket']}")
+    print(f"Attendu : {example['category']} | {example['priority']}\n")
+    
+    # Predict
+    pred_result = predict_classifier(ticket=example['ticket'])
+    print(f"  Predict : {pred_result.category} | {pred_result.priority}")
+    
+    # ChainOfThought
+    cot_result = cot_classifier(ticket=example['ticket'])
+    print(f"  ChainOfThought : {cot_result.category} | {cot_result.priority}")
+    print()
+```
+
+Cela produira une sortie comme :
+
+```
+======================================================================
+Comparaison Predict vs ChainOfThought
+======================================================================
+
+--- Exemple 1 ---
+Ticket : Le serveur de fichiers est inaccessible. Personne ne peut travailler.
+Attendu : Infrastructure | Critical
+
+  Predict : Infrastructure | High
+  ChainOfThought : Infrastructure | High
+
+--- Exemple 2 ---
+Ticket : J'ai besoin d'accès au dossier comptabilité pour l'audit. C'est urgent.
+Attendu : Account | Urgent
+
+  Predict : Account | Urgent
+  ChainOfThought : Account | Urgent
+
+--- Exemple 3 ---
+Ticket : L'écran de mon collègue en vacances clignote. On peut attendre.
+Attendu : Hardware | Low
+
+  Predict : Hardware | Low
+  ChainOfThought : Hardware | Low
 ```
 
 #### Module 3 : ReAct (raisonnement + actions)
 
 **ReAct** alterne entre raisonnement et actions.
 
-**Fonctionnement :**
+**Fonctionnement**&nbsp;:
 1. Raisonne sur le problème
 2. Décide d'une action à faire (ex: chercher dans une base de données)
 3. Observe le résultat de l'action
 4. Raisonne à nouveau avec cette nouvelle information
 5. Répète jusqu'à avoir la réponse
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Besoin d'interactions avec des outils externes
 - Recherche d'informations nécessaire
 - Tâches multi-étapes
 
-**Note :** ReAct nécessite de définir des outils (fonctions) que le modèle peut appeler.
+**Note**&nbsp;: ReAct nécessite de définir des outils (fonctions) que le modèle peut appeler.
 
 #### Module 4 : ProgramOfThought (génération de code)
 
 **ProgramOfThought** génère du code Python pour raisonner.
 
-**Fonctionnement :**
+**Fonctionnement**&nbsp;:
 1. Analyse le problème
 2. Génère du code Python pour le résoudre
 3. Exécute le code
 4. Utilise le résultat pour générer la réponse
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Problèmes mathématiques
 - Calculs complexes
 - Manipulation de données structurées
 
-**Exemple typique :** "Combien font 347 * 892 + 123 / 7 ?"
+**Exemple typique**&nbsp;: "Combien font 347 * 892 + 123 / 7 ?"
 - Le modèle génère : `result = 347 * 892 + 123 / 7`
 - Exécute le code : `309541.57`
 - Retourne la réponse avec le calcul exact
@@ -284,6 +471,19 @@ Vous pouvez créer vos propres modules en **composant** plusieurs modules exista
 Classifier d'abord la catégorie, puis la priorité en fonction de la catégorie.
 
 ```python
+# Définir des signatures spécialisées
+class CategoryClassifier(dspy.Signature):
+    """Déterminer la catégorie technique d'un ticket IT."""
+    ticket = dspy.InputField(desc="Description du ticket")
+    category = dspy.OutputField(desc=f"Catégorie parmi: {', '.join(CATEGORIES)}")
+
+class PriorityClassifier(dspy.Signature):
+    """Déterminer la priorité d'un ticket en fonction de sa catégorie."""
+    ticket = dspy.InputField(desc="Description du ticket")
+    category = dspy.InputField(desc="Catégorie technique déjà identifiée")
+    priority = dspy.OutputField(desc=f"Priorité parmi: {', '.join(PRIORITIES)}")
+
+
 class SequentialClassifier(dspy.Module):
     def __init__(self):
         super().__init__()
@@ -304,7 +504,28 @@ class SequentialClassifier(dspy.Module):
             category=category_result.category,
             priority=priority_result.priority
         )
+
+
+# Tester le module composé
+sequential = SequentialClassifier()
+result = sequential(ticket=test_ticket)
+
+print("🔗 Module composé : SequentialClassifier")
+print(f"📝 Ticket : {test_ticket}")
+print(f"📦 Catégorie (étape 1) : {result.category}")
+print(f"⚡ Priorité (étape 2, basée sur catégorie) : {result.priority}")
 ```
+
+Cela produira une sortie comme :
+
+```txt
+🔗 Module composé : SequentialClassifier
+📝 Ticket : Mon ordinateur ne démarre plus. J'ai une présentation dans 1 heure.
+📦 Catégorie (étape 1) : Hardware
+⚡ Priorité (étape 2, basée sur catégorie) : Urgent
+```
+
+
 
 **Exemple 2 : Module avec validation**
 
@@ -314,21 +535,43 @@ Ajouter une étape de validation pour vérifier que les prédictions sont valide
 class ValidatedClassifier(dspy.Module):
     def __init__(self):
         super().__init__()
-        self.predictor = dspy.ChainOfThought(TicketClassifier)
-        self.valid_categories = {"Hardware", "Software", "Network", "Access"}
-        self.valid_priorities = {"Low", "Medium", "High", "Urgent", "Critical"}
-
+        self.classifier = dspy.ChainOfThought(TicketClassifier)
+    
     def forward(self, ticket):
-        result = self.predictor(ticket=ticket)
-
-        # Validation et normalisation
-        if result.category not in self.valid_categories:
-            result.category = "Software"  # Catégorie par défaut
-        if result.priority not in self.valid_priorities:
-            result.priority = "Medium"  # Priorité par défaut
-
+        # Prédiction
+        result = self.classifier(ticket=ticket)
+        
+        # Validation de la catégorie
+        if result.category not in CATEGORIES:
+            print(f"⚠️ Catégorie invalide '{result.category}', correction...")
+            result.category = "Application"  # Valeur par défaut
+        
+        # Validation de la priorité
+        if result.priority not in PRIORITIES:
+            print(f"⚠️ Priorité invalide '{result.priority}', correction...")
+            result.priority = "Medium"  # Valeur par défaut
+        
         return result
+
+# Tester le module avec validation
+validated = ValidatedClassifier()
+result = validated(ticket=test_ticket)
+
+print("\n✅ Module avec validation : ValidatedClassifier")
+print(f"📦 Catégorie validée : {result.category}")
+print(f"⚡ Priorité validée : {result.priority}")
 ```
+
+Cela produira une sortie comme :
+
+```txt
+✅ Module avec validation : ValidatedClassifier
+📦 Catégorie validée : Hardware
+⚡ Priorité validée : High
+```
+
+?? Je suis rendu ici.
+
 
 **Exemple 3 : Module avec consensus (ensemble)**
 
@@ -360,7 +603,7 @@ class EnsembleClassifier(dspy.Module):
 
 #### 💡 Bonnes pratiques pour les modules
 
-**✅ À faire :**
+**✅ À faire**&nbsp;:
 
 1. **Commencer simple** : Utilisez d'abord `Predict`, puis `ChainOfThought` si besoin
 2. **Nommer clairement** : `TicketClassifier` plutôt que `Classifier1`
@@ -368,7 +611,7 @@ class EnsembleClassifier(dspy.Module):
 4. **Composer progressivement** : Testez chaque module individuellement
 5. **Documenter** : Ajoutez des docstrings à vos modules personnalisés
 
-**❌ À éviter :**
+**❌ À éviter**&nbsp;:
 
 1. **Utiliser ChainOfThought partout** : Plus lent et plus coûteux
 2. **Trop de composition** : Gardez les pipelines compréhensibles
@@ -377,7 +620,7 @@ class EnsembleClassifier(dspy.Module):
 
 ### 3. Métriques : Mesurer la performance
 
-## Pourquoi évaluer ?
+#### Pourquoi évaluer ?
 
 Jusqu'à présent, nous avons créé des modules et observé leurs sorties qualitativement. Mais pour :
 - **Comparer** différents modules
@@ -386,7 +629,7 @@ Jusqu'à présent, nous avons créé des modules et observé leurs sorties quali
 
 ...nous avons besoin de **mesures quantitatives** : les **métriques**.
 
-## Qu'est-ce qu'une métrique ?
+#### Qu'est-ce qu'une métrique ?
 
 Une **métrique** est une fonction qui prend :
 - Un **exemple** avec la vraie réponse (ground truth)
@@ -402,12 +645,12 @@ Et retourne un **score entre 0.0 et 1.0** :
 
 La métrique la plus stricte : tout doit être parfait.
 
-**Avantages :**
+**Avantages**&nbsp;:
 - ✅ Simple à comprendre
 - ✅ Pas d'ambiguïté
 - ✅ Facile à interpréter (0% ou 100%)
 
-**Inconvénients :**
+**Inconvénients**&nbsp;:
 - ❌ Très stricte
 - ❌ Ne donne pas de crédit partiel
 - ❌ Peut décourager si le score est trop bas
@@ -433,7 +676,7 @@ def exact_match_metric(example, prediction, trace=None, pred_name=None, pred_tra
     return 1.0 if (category_match and priority_match) else 0.0
 ```
 
-**Exemple d'utilisation :**
+**Exemple d'utilisation**&nbsp;:
 ```python
 example = {'ticket': 'Mon PC ne démarre pas', 'category': 'Hardware', 'priority': 'Urgent'}
 prediction = dspy.Prediction(category='Hardware', priority='Urgent')
@@ -446,12 +689,12 @@ print(f"Score: {score}")  # Output: Score: 1.0
 
 Plus nuancée : donne des points partiels si au moins un champ est correct.
 
-**Avantages :**
+**Avantages**&nbsp;:
 - ✅ Plus de nuance
 - ✅ Donne du crédit partiel
 - ✅ Meilleur signal d'apprentissage
 
-**Inconvénients :**
+**Inconvénients**&nbsp;:
 - ❌ Moins binaire (interprétation plus complexe)
 
 ```python
@@ -478,7 +721,7 @@ def partial_match_metric(example, prediction, trace=None, pred_name=None, pred_t
         return 0.0
 ```
 
-**Exemple de comparaison :**
+**Exemple de comparaison**&nbsp;:
 ```python
 example = {'ticket': 'Mon PC ne démarre pas', 'category': 'Hardware', 'priority': 'Urgent'}
 
@@ -529,7 +772,7 @@ def evaluate_module(module, dataset, metric):
     return sum(scores) / len(scores) if scores else 0.0
 ```
 
-**Exemple d'utilisation :**
+**Exemple d'utilisation**&nbsp;:
 ```python
 from src.data import get_val_examples
 from src.modules import SimpleTicketClassifier
@@ -550,7 +793,7 @@ print(f"Partial match: {score_partial:.1%}")  # ex: 82.5%
 
 #### 💡 Bonnes pratiques pour l'évaluation
 
-**✅ À faire :**
+**✅ À faire**&nbsp;:
 
 1. **Toujours avoir un dataset de validation séparé** : Ne jamais évaluer sur les données d'entraînement
 2. **Utiliser plusieurs métriques** : Exact match + partial match donnent une vue complète
@@ -558,7 +801,7 @@ print(f"Partial match: {score_partial:.1%}")  # ex: 82.5%
 4. **Documenter vos métriques** : Expliquez ce que signifie chaque score
 5. **Comparer de manière équitable** : Même dataset, même métrique
 
-**❌ À éviter :**
+**❌ À éviter**&nbsp;:
 
 1. **Une seule métrique** : Peut ne pas capturer toute la complexité
 2. **Dataset trop petit** : Minimum 10-15 exemples de validation
@@ -567,7 +810,7 @@ print(f"Partial match: {score_partial:.1%}")  # ex: 82.5%
 
 ### 4. Optimiseurs : Améliorer automatiquement
 
-## Introduction : Modules vs Optimiseurs
+#### Introduction : Modules vs Optimiseurs
 
 Jusqu'à présent, nous avons vu des **modules** (Predict, ChainOfThought, ReAct, etc.). Ces modules **exécutent** des tâches en interrogeant le LLM.
 
@@ -577,9 +820,9 @@ Les **optimiseurs**, quant à eux, **améliorent** les modules en :
 - Ajustant les paramètres
 - Sélectionnant les meilleures configurations
 
-**Analogie :** Si un module est comme un employé qui exécute des tâches, un optimiseur est comme un coach qui entraîne l'employé à s'améliorer.
+**Analogie**&nbsp;: Si un module est comme un employé qui exécute des tâches, un optimiseur est comme un coach qui entraîne l'employé à s'améliorer.
 
-## BootstrapFewShot : Générer des exemples de démonstration
+#### BootstrapFewShot : Générer des exemples de démonstration
 
 **BootstrapFewShot** est l'optimiseur le plus simple de DSPy. Il fonctionne en :
 
@@ -588,23 +831,23 @@ Les **optimiseurs**, quant à eux, **améliorent** les modules en :
 3. Utilisant ces prédictions comme exemples de démonstration (few-shot)
 4. Injectant ces exemples dans le prompt du module optimisé
 
-**Avantages :**
+**Avantages**&nbsp;:
 - ✅ Simple à comprendre et à utiliser
 - ✅ Rapide à exécuter
 - ✅ Amélioration typique de 5-15%
 - ✅ Pas besoin de configuration complexe
 
-**Inconvénients :**
+**Inconvénients**&nbsp;:
 - ❌ N'optimise pas les instructions
 - ❌ Amélioration limitée comparé à MIPRO ou GEPA
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Première optimisation
 - Tests rapides
 - Vous avez peu de temps
 - Vous voulez comprendre comment fonctionne l'optimisation
 
-**Exemple d'utilisation :**
+**Exemple d'utilisation**&nbsp;:
 ```python
 from dspy.teleprompt import BootstrapFewShot
 from src.data import get_train_examples
@@ -630,29 +873,29 @@ optimized_classifier = optimizer.compile(
 # Le module optimisé inclut maintenant 4 exemples de démonstration
 ```
 
-## BootstrapFewShotWithRandomSearch
+#### BootstrapFewShotWithRandomSearch
 
 Une variante améliorée de BootstrapFewShot qui teste plusieurs combinaisons d'exemples.
 
-**Fonctionnement :**
+**Fonctionnement**&nbsp;:
 1. Génère plusieurs ensembles d'exemples
 2. Teste différentes combinaisons
 3. Garde la meilleure configuration selon la métrique
 
-**Amélioration typique :** 8-18%
+**Amélioration typique**&nbsp;: 8-18%
 
-**Quand l'utiliser :** Quand vous avez un peu plus de temps que BootstrapFewShot standard.
+**Quand l'utiliser**&nbsp;: Quand vous avez un peu plus de temps que BootstrapFewShot standard.
 
-## SignatureOptimizer
+#### SignatureOptimizer
 
 **SignatureOptimizer** se concentre uniquement sur l'optimisation des instructions de votre signature, sans ajouter d'exemples de démonstration.
 
-**Fonctionnement :**
+**Fonctionnement**&nbsp;:
 1. Génère plusieurs variantes d'instructions pour votre signature
 2. Teste chaque variante
 3. Garde la meilleure
 
-**Configuration :**
+**Configuration**&nbsp;:
 ```python
 from dspy.teleprompt import SignatureOptimizer
 
@@ -669,13 +912,13 @@ optimized = optimizer.compile(
 )
 ```
 
-**Amélioration typique :** 5-12%
+**Amélioration typique**&nbsp;: 5-12%
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Vous voulez améliorer vos prompts sans ajouter d'exemples
 - Vous avez des contraintes de latence (les exemples ajoutent des tokens)
 
-## MIPRO : Optimisation des instructions et exemples
+#### MIPRO : Optimisation des instructions et exemples
 
 **MIPRO** (Multi-prompt Instruction Proposal Optimizer) est un optimiseur plus avancé qui :
 
@@ -684,22 +927,22 @@ optimized = optimizer.compile(
 3. **Teste différentes combinaisons** (instructions × exemples)
 4. **Garde la meilleure configuration** selon votre métrique
 
-**Avantages :**
+**Avantages**&nbsp;:
 - ✅ Optimise à la fois les instructions et les exemples
 - ✅ Amélioration typique de 10-25%
 - ✅ Recherche systématique de la meilleure configuration
 
-**Inconvénients :**
+**Inconvénients**&nbsp;:
 - ❌ Plus lent que BootstrapFewShot
 - ❌ Nécessite plus d'appels LLM
 - ❌ Configuration plus complexe
 
-**Quand l'utiliser :**
+**Quand l'utiliser**&nbsp;:
 - Après avoir testé BootstrapFewShot
 - Vous voulez une meilleure performance
 - Vous avez 10-20 minutes pour l'optimisation
 
-**Configuration :**
+**Configuration**&nbsp;:
 ```python
 from dspy.teleprompt import MIPRO
 
@@ -718,16 +961,16 @@ optimized = optimizer.compile(
 )
 ```
 
-## GEPA (Genetic-Pareto Algorithm)
+#### GEPA (Genetic-Pareto Algorithm)
 
 L'optimiseur le plus sophistiqué. Il combine :
 - **Algorithmes génétiques** : Évolution de populations d'instructions
 - **Réflexion par modèle de langage** : Analyse des erreurs et propositions d'améliorations
 - **Optimisation Pareto** : Équilibre de multiples objectifs
 
-**Amélioration typique :** 15 à 30 %
+**Amélioration typique**&nbsp;: 15 à 30 %
 
-**Niveaux d'optimisation :**
+**Niveaux d'optimisation**&nbsp;:
 
 | Niveau   | Durée      | Appels LLM | Amélioration | Utilisation             |
 |----------|------------|------------|--------------|-------------------------|
@@ -735,7 +978,7 @@ L'optimiseur le plus sophistiqué. Il combine :
 | `medium` | 10-20 min  | ~400-800   | 15-25%       | Production légère       |
 | `heavy`  | 20-40 min  | ~800-1600  | 20-30%       | Performance maximale    |
 
-## Comparaison des optimiseurs
+#### Comparaison des optimiseurs
 
 | Optimiseur | Ce qu'il optimise | Vitesse | Amélioration typique | Complexité | Quand l'utiliser |
 |------------|------------------|---------|---------------------|------------|------------------|
@@ -745,14 +988,14 @@ L'optimiseur le plus sophistiqué. Il combine :
 | **MIPRO** | Instructions + exemples | ⚡ Lent | 10-25% | Moyen | Production, bonne performance |
 | **GEPA** | Instructions + exemples + réflexion | 🐌 Très lent | 15-30% | Élevée | Performance maximale, tâches critiques |
 
-## Stratégie d'optimisation recommandée
+#### Stratégie d'optimisation recommandée
 
 1. **Phase 1 : Baseline** - Commencez sans optimisation pour avoir un point de référence
 2. **Phase 2 : BootstrapFewShot** - Première amélioration rapide (5-10 minutes)
 3. **Phase 3 : MIPRO** - Si les résultats sont prometteurs (10-20 minutes)
 4. **Phase 4 : GEPA** - Pour la performance maximale sur les tâches critiques (20-40 minutes)
 
-## Comment GEPA fonctionne
+#### Comment GEPA fonctionne
 
 GEPA utilise une approche inspirée de l'évolution biologique :
 
@@ -763,12 +1006,12 @@ GEPA utilise une approche inspirée de l'évolution biologique :
 5. **Mutation** : Génère de nouvelles variantes basées sur la réflexion
 6. **Répétition** : Continue jusqu'à convergence
 
-**Avantages de GEPA :**
+**Avantages de GEPA**&nbsp;:
 - Trouve des instructions que les humains n'auraient pas imaginées
 - Apprend de ses erreurs de manière itérative
 - Équilibre plusieurs objectifs (précision, concision, etc.)
 
-**Quand utiliser GEPA :**
+**Quand utiliser GEPA**&nbsp;:
 - Vous visez la meilleure performance possible
 - Vous avez suffisamment de données (20+ exemples)
 - Vous avez du temps pour l'optimisation (10-30 minutes)
@@ -785,7 +1028,7 @@ DSPy offre une **abstraction puissante** : votre code reste le même quel que so
 3. **Créer des architectures hybrides** (modèle rapide pour catégorie, modèle précis pour priorité)
 4. **Optimiser coût vs performance**
 
-**Avantages du multi-modèles :**
+**Avantages du multi-modèles**&nbsp;:
 - 💰 **Optimisation des coûts** : Utilisez des modèles gratuits (Ollama) pour le développement
 - 🎯 **Meilleure performance** : Testez plusieurs modèles pour trouver le meilleur
 - 🔒 **Confidentialité** : Modèles locaux pour les données sensibles
@@ -797,13 +1040,13 @@ DSPy offre une **abstraction puissante** : votre code reste le même quel que so
 
 Ollama permet d'exécuter des modèles **localement** sans API key ni coûts.
 
-**Modèles recommandés :**
+**Modèles recommandés**&nbsp;:
 - `llama3.1:8b` - Équilibré, bon pour la plupart des tâches (4.7 GB)
 - `mistral:7b` - Rapide, bon pour les tâches simples (4.1 GB)
 - `qwen2.5:7b` - Haute qualité, excellent pour les tâches complexes (4.7 GB)
 - `gemma2:9b` - Alternative de Google, très performant (5.4 GB)
 
-**Configuration :**
+**Configuration**&nbsp;:
 ```python
 import dspy
 
@@ -821,12 +1064,12 @@ dspy.configure(lm=lm)
 
 OpenAI propose des modèles très performants via API.
 
-**Modèles recommandés :**
+**Modèles recommandés**&nbsp;:
 - `gpt-4o-mini` - Rapide et économique, bon rapport qualité/prix
 - `gpt-4o` - Haute performance, multimodal
 - `gpt-4-turbo` - Équilibré performance/coût
 
-**Configuration :**
+**Configuration**&nbsp;:
 ```python
 import dspy
 import os
@@ -847,12 +1090,12 @@ dspy.configure(lm=lm)
 
 Anthropic propose les modèles Claude, connus pour leur qualité et leur sécurité.
 
-**Modèles recommandés :**
+**Modèles recommandés**&nbsp;:
 - `claude-3-5-haiku-20241022` - Rapide et économique
 - `claude-3-5-sonnet-20241022` - Équilibré, excellent pour la plupart des tâches
 - `claude-3-opus-20240229` - Maximum de performance
 
-**Configuration :**
+**Configuration**&nbsp;:
 ```python
 import dspy
 import os
@@ -939,12 +1182,12 @@ Une **architecture hybride** utilise différents modèles pour différentes part
 - Modèle **rapide et économique** pour la catégorisation
 - Modèle **précis mais coûteux** pour la priorisation
 
-**Avantages :**
+**Avantages**&nbsp;:
 - 💰 **Optimisation des coûts** : Utiliser des modèles coûteux uniquement quand nécessaire
 - ⚡ **Optimisation de la vitesse** : Modèles rapides pour les tâches simples
 - 🎯 **Optimisation de la qualité** : Modèles précis pour les tâches critiques
 
-**Exemple :**
+**Exemple**&nbsp;:
 ```python
 class HybridTicketClassifier(dspy.Module):
     """
@@ -997,7 +1240,7 @@ hybrid_classifier = HybridTicketClassifier(
 | **Disponibilité** | Dépend de votre machine | Haute (99.9% uptime) | Haute (99.9% uptime) |
 | **Setup** | Installation locale requise | API key uniquement | API key uniquement |
 
-**Recommandations :**
+**Recommandations**&nbsp;:
 
 - **Développement/tests** : Ollama (gratuit, rapide à itérer)
 - **Production avec données sensibles** : Ollama (confidentialité)
@@ -1026,13 +1269,13 @@ Les **patterns avancés** permettent de :
 
 Le **pattern de validation** vérifie que les sorties du LLM respectent les contraintes de votre application.
 
-**Problème :**
+**Problème**&nbsp;:
 Les LLMs peuvent générer :
 - Des catégories qui n'existent pas ("Matériel" au lieu de "Hardware")
 - Des priorités invalides ("Très urgent" au lieu de "Urgent")
 - Des formats incorrects (minuscules au lieu de majuscules)
 
-**Solution :**
+**Solution**&nbsp;:
 ```python
 class ValidatedTicketClassifier(dspy.Module):
     """
@@ -1104,7 +1347,7 @@ class ValidatedTicketClassifier(dspy.Module):
 
 Le **pattern de retry** réessaye automatiquement une opération en cas d'échec temporaire.
 
-**Solution :**
+**Solution**&nbsp;:
 ```python
 import time
 from typing import Optional
@@ -1144,7 +1387,7 @@ class RetryTicketClassifier(dspy.Module):
 
 Le **pattern de fallback** utilise un modèle de secours si le modèle principal échoue.
 
-**Solution :**
+**Solution**&nbsp;:
 ```python
 class FallbackTicketClassifier(dspy.Module):
     """
@@ -1178,7 +1421,7 @@ class FallbackTicketClassifier(dspy.Module):
 
 Le **pattern d'ensemble** combine les prédictions de plusieurs modèles pour améliorer la robustesse.
 
-**Solution :**
+**Solution**&nbsp;:
 ```python
 class EnsembleTicketClassifier(dspy.Module):
     """
