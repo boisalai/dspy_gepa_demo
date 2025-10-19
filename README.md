@@ -1,6 +1,6 @@
 # Tutoriel DSPy et GEPA : Classification automatique de billets d'assistance informatique
 
-Ce tutoriel explique **DSPy** (Declarative Self-improving Language Programs) et **GEPA** (Genetic-Pareto Algorithm), deux outils pour développer des applications utilisant des modèles de langage.
+Ce tutoriel explique **DSPy** (Declarative Self-improving Language Programs) et **GEPA** (Generalized Error-driven Prompt Augmentation), deux outils pour développer des applications utilisant des modèles de langage.
 
 ## Vue d'ensemble
 
